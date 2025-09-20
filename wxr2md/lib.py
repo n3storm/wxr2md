@@ -150,7 +150,7 @@ class Blog:
     """List of posts and pages in the blog, including drafts"""
 
     @classmethod
-    def from_file(cls, input: Path):
+    def from_file(cls, input: Path, types: list[str] = ["post", "page"]):
         """Create a Blog object from a WXR file"""
         tree = ElementTree.parse(input)
 
@@ -160,10 +160,12 @@ class Blog:
         title = channel.find("title").text
         description = channel.find("description").text
         url = channel.find("link").text
+        if not isinstance(types, list):
+            raise TypeError(f"types must be a list, got {type(types).__name__}")
         posts = [
             Post.from_element(e)
             for e in channel.findall("item")
-            if e.find("wp:post_type", NAMESPACES).text in ["post", "page"]
+            if e.find("wp:post_type", NAMESPACES).text in types
         ]
 
         return cls(title=title, description=description, url=url, posts=posts)
