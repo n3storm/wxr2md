@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Literal
 from datetime import datetime
 from pathlib import Path
 from xml.etree import ElementTree
@@ -25,6 +26,8 @@ class Post:
     """Type of blog entry, e.g. page or post"""
     title: str
     """Title of the post as displayed in the page, can be None"""
+    url: str
+    """URL (not permalink) of the post"""
     name: str
     """Name in the URL of the post"""
     content: str
@@ -37,6 +40,8 @@ class Post:
     """List of categories this post is associated with"""
     tags: list[str]
     """List of tags this post is associated with"""
+    parent: int
+    """Post parent por page hierarchy and attachments"""
     draft: bool
     """Whether this post is a draft"""
 
@@ -46,9 +51,11 @@ class Post:
     def from_element(cls, element: ElementTree.Element):
         """Create a post from an XML element"""
         title = element.find("title").text
+        url = element.find("guid", NAMESPACES).text
         name = element.find("wp:post_name", NAMESPACES).text
         id = int(element.find("wp:post_id", NAMESPACES).text)
         type = element.find("wp:post_type", NAMESPACES).text
+        parent = int(element.find("wp:post_parent", NAMESPACES).text)
 
         content = element.find("content:encoded", NAMESPACES).text
         if content is not None:
@@ -82,6 +89,8 @@ class Post:
             categories=categories,
             tags=tags,
             draft=draft,
+            parent=parent,
+            url=url
         )
 
     def get_frontmatter(self) -> str:
@@ -93,6 +102,8 @@ class Post:
             "type": self.type,
             "date": self.date,
             "lastmod": self.lastmod,
+            "parent": self.parent,
+            "url": self.url,
         }
 
         if len(self.categories) > 0:
@@ -150,7 +161,7 @@ class Blog:
     """List of posts and pages in the blog, including drafts"""
 
     @classmethod
-    def from_file(cls, input: Path):
+    def from_file(cls, input: Path, types: list[str] = ["post", "page"]):
         """Create a Blog object from a WXR file"""
         tree = ElementTree.parse(input)
 
@@ -160,10 +171,14 @@ class Blog:
         title = channel.find("title").text
         description = channel.find("description").text
         url = channel.find("link").text
+
+        if not isinstance(types, list):
+                raise TypeError(f"types must be a list, got {type(types).__name__}")
+
         posts = [
             Post.from_element(e)
             for e in channel.findall("item")
-            if e.find("wp:post_type", NAMESPACES).text in ["post", "page"]
+            if e.find("wp:post_type", NAMESPACES).text in types
         ]
 
         return cls(title=title, description=description, url=url, posts=posts)
