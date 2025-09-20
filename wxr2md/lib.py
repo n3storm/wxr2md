@@ -25,6 +25,8 @@ class Post:
     """Type of blog entry, e.g. page or post"""
     title: str
     """Title of the post as displayed in the page, can be None"""
+    url: str
+    """URL (not permalink) of the post"""
     name: str
     """Name in the URL of the post"""
     content: str
@@ -46,6 +48,7 @@ class Post:
     def from_element(cls, element: ElementTree.Element):
         """Create a post from an XML element"""
         title = element.find("title").text
+        url = element.find("guid", NAMESPACES).text
         name = element.find("wp:post_name", NAMESPACES).text
         id = int(element.find("wp:post_id", NAMESPACES).text)
         type = element.find("wp:post_type", NAMESPACES).text
@@ -82,6 +85,7 @@ class Post:
             categories=categories,
             tags=tags,
             draft=draft,
+            url=url,
         )
 
     def get_frontmatter(self) -> str:
@@ -93,6 +97,7 @@ class Post:
             "type": self.type,
             "date": self.date,
             "lastmod": self.lastmod,
+            "url": self.url,
         }
 
         if len(self.categories) > 0:
